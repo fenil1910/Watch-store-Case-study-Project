@@ -29,10 +29,13 @@ mongoose.connect(mongoURI)
 
 // 3. Remove any other mongoose.connect() lines below this!
 
-const User = mongoose.model('User', {
-    name: String, email: String, pass: String, role: { type: String, default: 'user' }
+const userSchema = new mongoose.Schema({
+    name: String,
+    email: String,
+    pass: String,
+    role: { type: String, default: 'user' }
 });
-
+const User = mongoose.model('User', userSchema); // Make sure this line exists!
 // --- API Routes ---
 
 // 1. Get All Watches
