@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html ng-app="watchApp">
+<head>
+    <meta charset="UTF-8">
+    <title>TimeKeeper Pro | Online Watch Store</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.2/angular.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #2c3e50; --accent: #3498db; --success: #27ae60; --danger: #e74c3c; --light: #ecf0f1;
+        }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; background-color: #f4f7f6; color: #333; }
+        nav { background-color: var(--primary); color: white; padding: 15px 50px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        .logo { font-size: 24px; font-weight: bold; letter-spacing: 1px; }
+        .container { padding: 30px 50px; }
+        
+        .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .search-container { position: relative; display: flex; align-items: center; }
+        .search-icon { position: absolute; left: 15px; color: #888; font-size: 16px; pointer-events: none; }
+        .search-box { padding: 10px 15px 10px 40px; width: 350px; border: 1px solid #ddd; border-radius: 25px; outline: none; }
+
+        .btn { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; transition: 0.3s; margin-left: 5px; }
+        .btn-login { background: var(--accent); color: white; }
+        .btn-reg { background: #95a5a6; color: white; }
+        .btn-logout { background: var(--danger); color: white; }
+        .btn-admin { background: #8e44ad; color: white; }
+        .btn-buy { background: var(--success); color: white; width: 100%; margin-top: 10px; }
+        
+        .grid { display: flex; gap: 25px; flex-wrap: wrap; }
+        .card { background: white; width: 260px; padding: 15px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.3s; }
+        .card:hover { transform: translateY(-8px); }
+        .card img { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; }
+        .price-tag { font-size: 1.2em; color: var(--success); font-weight: bold; display: block; margin: 10px 0; }
+        
+        table { width: 100%; background: white; border-collapse: collapse; border-radius: 8px; overflow: hidden; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: var(--primary); color: white; }
+
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 9999; }
+        .modal-content { background: white; padding: 40px; border-radius: 12px; width: 400px; text-align: center; max-height: 85vh; overflow-y: auto; }
+        .modal-content input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+
+        /* Print Logic */
+        @media print {
+            body * { visibility: hidden; }
+            #invoiceSection, #invoiceSection * { visibility: visible; }
+            #invoiceSection { position: absolute; left: 0; top: 0; width: 100%; }
+            .no-print { display: none; }
+        }
+    </style>
+</head>
+<body ng-controller="MainController">
+
+    <nav>
+        <div class="logo">TIMEKEEPER</div>
+        <div>
+            <span ng-if="currentUser">Welcome, <b>{{currentUser.name}}</b> | </span>
+            <button class="btn btn-login" ng-if="!currentUser" ng-click="openLogin()">Login</button>
+            <button class="btn btn-reg" ng-if="!currentUser" ng-click="openRegister()">Register</button>
+            <button class="btn btn-logout" ng-if="currentUser" ng-click="logout()">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="toolbar">
+            <div class="search-container">
+                <span class="search-icon">🔍</span>
+                <input type="text" class="search-box" ng-model="searchQuery" placeholder="Search by brand or model...">
+            </div>
+            <div>
+                <span ng-if="currentUser.role === 'user'">
+                    🛒 Items: {{cart.length}} 
+                    <button class="btn btn-login" ng-if="cart.length > 0" ng-click="openCheckout()">Checkout</button>
+                </span>
+                <button class="btn btn-admin" ng-if="currentUser.role === 'admin'" ng-click="toggleView()">
+                    {{ showAdmin ? 'Back to Store' : 'Manage Stock' }}
+                </button>
+            </div>
+        </div>
+
+        <div ng-if="!showAdmin">
+            <div class="grid">
+                <div class="card" ng-repeat="watch in watches | filter:searchQuery">
+                    <img ng-src="{{watch.imageUrl}}" alt="{{watch.model}}">
+                    <h3>{{watch.brand}}</h3>
+                    <p>{{watch.model}}</p>
+                    <span class="price-tag">₹{{watch.price}}</span>
+                    <button class="btn btn-buy" ng-click="addToCart(watch)">Add to Cart</button>
+                </div>
+            </div>
+        </div>
+
+        <div ng-if="showAdmin">
+            <div style="background:white; padding:20px; border-radius:8px; margin-bottom:20px;">
+                <h3>Add New Watch</h3>
+                <input type="text" ng-model="newWatch.brand" placeholder="Brand" style="padding:8px; margin-right:5px;">
+                <input type="text" ng-model="newWatch.model" placeholder="Model" style="padding:8px; margin-right:5px;">
+                <input type="number" ng-model="newWatch.price" placeholder="Price" style="padding:8px; margin-right:5px;">
+                <input type="text" ng-model="newWatch.imageUrl" placeholder="Image URL" style="padding:8px; margin-right:5px;">
+                <button class="btn btn-login" ng-click="addWatch()">Add Product</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Price</th>
+                        <th>Update Price</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr ng-repeat="watch in watches | filter:searchQuery">
+                        <td>{{watch.brand}} - {{watch.model}}</td>
+                        <td>₹{{watch.price}}</td>
+                        <td>
+                            <input type="number" ng-model="watch.tempPrice" placeholder="New Price" style="width: 100px; padding: 5px;">
+                            <button class="btn btn-login" style="padding: 5px 10px; font-size: 12px;" ng-click="updatePrice(watch)">Save</button>
+                        </td>
+                        <td><button class="btn btn-red" ng-click="deleteWatch(watch._id, $index)">Delete</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="modal" ng-if="showCheckoutModal">
+        <div class="modal-content" id="invoiceSection">
+            <h2 style="color: var(--primary);">TAX INVOICE</h2>
+            <hr>
+            <div style="text-align: left; margin: 15px 0;">
+                <p><b>Customer:</b> {{currentUser.name}}</p>
+                <p><b>Date:</b> {{today | date:'fullDate'}}</p>
+            </div>
+            <table>
+                <thead><tr><th>Item</th><th>Price</th></tr></thead>
+                <tbody>
+                    <tr ng-repeat="item in cart">
+                        <td>{{item.brand}} {{item.model}}</td>
+                        <td>₹{{item.price}}</td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr style="background:#eee; font-weight:bold;">
+                        <td>TOTAL AMOUNT</td>
+                        <td>₹{{calculateTotal()}}</td>
+                    </tr>
+                </tfoot>
+            </table>
+            <div class="no-print">
+                <button class="btn btn-login" ng-click="printInvoice()">Print Receipt</button>
+                <button class="btn btn-red" ng-click="closeCheckout()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" ng-if="showLoginModal">
+        <div class="modal-content" style="width:320px;">
+            <h3>Login</h3>
+            <input type="email" ng-model="userForm.logEmail" placeholder="Email">
+            <input type="password" ng-model="userForm.logPass" placeholder="Password">
+            <button class="btn btn-login" style="width: 100%;" ng-click="login()">Sign In</button>
+            <p ng-click="closeModals()" style="cursor:pointer; color:red; margin-top:10px;">Cancel</p>
+        </div>
+    </div>
+
+    <div class="modal" ng-if="showRegModal">
+        <div class="modal-content" style="width:320px;">
+            <h3>Register</h3>
+            <input type="text" ng-model="userForm.regName" placeholder="Full Name">
+            <input type="email" ng-model="userForm.regEmail" placeholder="Email">
+            <input type="password" ng-model="userForm.regPass" placeholder="Password">
+            <button class="btn btn-login" style="width: 100%;" ng-click="register()">Create Account</button>
+            <p ng-click="closeModals()" style="cursor:pointer; color:red; margin-top:10px;">Cancel</p>
+        </div>
+    </div>
+
+    <script>
+        var app = angular.module('watchApp', []);
+        app.controller('MainController', function($scope, $http) {
+            $scope.watches = []; $scope.cart = []; $scope.userForm = {}; $scope.newWatch = {};
+            $scope.currentUser = JSON.parse(localStorage.getItem('user'));
+            $scope.today = new Date();
+
+            $scope.init = function() {
+                $http.get('/api/watches').then(res => $scope.watches = res.data);
+            };
+            $scope.init();
+
+            // Invoice Logic
+            $scope.calculateTotal = function() {
+                let total = 0;
+                $scope.cart.forEach(item => total += item.price);
+                return total;
+            };
+            $scope.openCheckout = function() { $scope.showCheckoutModal = true; };
+            $scope.closeCheckout = function() { $scope.showCheckoutModal = false; };
+            $scope.printInvoice = function() { window.print(); };
+
+            // CRUD & Actions
+            $scope.addToCart = function(watch) {
+                if (!$scope.currentUser) return alert("Login first!");
+                $scope.cart.push(watch);
+                alert(watch.model + " added to your cart!");
+            };
+
+            $scope.updatePrice = function(watch) {
+                if (!watch.tempPrice) return alert("Please enter a new price first!");
+                $http.put('/api/watches/' + watch._id, { price: watch.tempPrice })
+                .then(function() {
+                    watch.price = watch.tempPrice;
+                    watch.tempPrice = null;
+                    alert("Price updated successfully!");
+                });
+            };
+
+            $scope.login = function() {
+                $http.post('/api/login', { email: $scope.userForm.logEmail, pass: $scope.userForm.logPass })
+                .then(res => {
+                    $scope.currentUser = res.data;
+                    localStorage.setItem('user', JSON.stringify(res.data));
+                    $scope.closeModals();
+                    alert("Welcome " + res.data.name);
+                }).catch(() => alert("Login Failed!"));
+            };
+
+            $scope.register = function() {
+                $http.post('/api/register', { name: $scope.userForm.regName, email: $scope.userForm.regEmail, pass: $scope.userForm.regPass })
+                .then(() => { alert("Success! Now Login."); $scope.closeModals(); });
+            };
+
+            // UI Controls
+            $scope.openLogin = () => $scope.showLoginModal = true;
+            $scope.openRegister = () => $scope.showRegModal = true;
+            $scope.closeModals = () => { $scope.showLoginModal = false; $scope.showRegModal = false; };
+            $scope.logout = () => { $scope.currentUser = null; $scope.cart = []; localStorage.removeItem('user'); };
+            $scope.toggleView = () => $scope.showAdmin = !$scope.showAdmin;
+            $scope.addWatch = () => {
+                $http.post('/api/watches', $scope.newWatch).then(res => {
+                    $scope.watches.push(res.data); $scope.newWatch = {}; alert("Added!");
+                });
+            };
+            $scope.deleteWatch = (id, idx) => {
+                if(confirm("Delete?")) $http.delete('/api/watches/' + id).then(() => $scope.watches.splice(idx, 1));
+            };
+        });
+    </script>
+</body>
+</html>
