@@ -14,7 +14,12 @@ app.use(express.static(__dirname));
 mongoose.connect('mongodb://127.0.0.1:27017/watchStore')
     .then(() => console.log("MongoDB Connected"))
     .catch(err => console.log(err));
+// Use the Environment Variable from Render, or fallback to local for development
+const mongoURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/watchStore';
 
+mongoose.connect(mongoURI)
+  .then(() => console.log("✅ Connected to MongoDB Atlas"))
+  .catch(err => console.log("❌ MongoDB Connection Error:", err));
 // --- Database Schemas ---
 const Watch = mongoose.model('Watch', {
     brand: String, model: String, price: Number, imageUrl: String
