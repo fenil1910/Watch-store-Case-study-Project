@@ -11,19 +11,23 @@ app.use(cors());
 app.use(express.static(__dirname));
 
 // MongoDB Connection
-mongoose.connect('mongodb://127.0.0.1:27017/watchStore')
-    .then(() => console.log("MongoDB Connected"))
-    .catch(err => console.log(err));
-// Use the Environment Variable from Render, or fallback to local for development
+// mongoose.connect('mongodb://127.0.0.1:27017/watchStore')
+//     .then(() => console.log("MongoDB Connected"))
+//     .catch(err => console.log(err));
+// // Use the Environment Variable from Render, or fallback to local for development
+// const mongoURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/watchStore';
+
+const mongoose = require('mongoose');
+
+// 1. Define the URI (Priority to Render's Environment Variable)
 const mongoURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/watchStore';
 
+// 2. Connect ONLY ONCE
 mongoose.connect(mongoURI)
-  .then(() => console.log("✅ Connected to MongoDB Atlas"))
-  .catch(err => console.log("❌ MongoDB Connection Error:", err));
-// --- Database Schemas ---
-const Watch = mongoose.model('Watch', {
-    brand: String, model: String, price: Number, imageUrl: String
-});
+  .then(() => console.log("✅ Successfully connected to MongoDB"))
+  .catch(err => console.error("❌ MongoDB Connection Error:", err));
+
+// 3. Remove any other mongoose.connect() lines below this!
 
 const User = mongoose.model('User', {
     name: String, email: String, pass: String, role: { type: String, default: 'user' }
